@@ -12,7 +12,8 @@ contract Escrow {
     uint256 public productId;
     State public state;
     uint256 public createdAt;
-    
+    address public marketplace; // 【零件：記錄授權秘書的身分證】
+    receive() external payable {}
     // 事件
     event Funded(address indexed buyer, uint256 amount);
     event Confirmed(address indexed buyer, address indexed seller, uint256 amount);
@@ -41,17 +42,19 @@ contract Escrow {
         address _seller,
         uint256 _productId,
         uint256 _amount
-    ) {
+    ) payable {
         buyer = _buyer;
         seller = _seller;
+        marketplace = msg.sender;
         productId = _productId;
         amount = _amount;
         state = State.Created;
         createdAt = block.timestamp;
     }
     
-    // 買家付款
-    function fund() external payable onlyBuyer inState(State.Created) {
+    // Escrow.sol
+    // 移除 onlyBuyer，否則 Marketplace 呼叫時會被拒絕
+    function fund() external payable inState(State.Created) {
         require(msg.value == amount, "Incorrect payment amount");
         state = State.Funded;
         emit Funded(msg.sender, msg.value);
@@ -60,7 +63,6 @@ contract Escrow {
     // 買家確認收貨 → 資金轉給賣家
     function confirmReceived() external onlyBuyer inState(State.Funded) {
         state = State.Confirmed;
-        
         (bool success, ) = payable(seller).call{value: amount}("");
         require(success, "Transfer to seller failed");
         
