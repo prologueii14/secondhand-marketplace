@@ -6,7 +6,7 @@ const CHAIN_ID = 11330023;
 
 // ========== Marketplace 合約 ==========
 // 部署後將地址填入下方
-const MARKETPLACE_ADDRESS = "";
+const MARKETPLACE_ADDRESS = "0xE1062834dbfFD5a5b595e67d2BD8b584Ca2f6ce3";
 
 const MARKETPLACE_ABI = [
 	{

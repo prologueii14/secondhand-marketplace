@@ -1,74 +1,62 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>二手交易市場 | Secondhand Marketplace</title>
-    <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>商品詳情 | 二手交易市場</title>
+  <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-    <!-- 導覽列 -->
-    <nav class="navbar">
-        <div class="nav-brand">
-            <h1>🛒 二手市場</h1>
-        </div>
-        <div class="nav-links">
-            <a href="index.html" class="active">商品列表</a>
-            <a href="my-orders.html">我的訂單</a>
-        </div>
-        <div class="nav-wallet">
-            <button id="connectWallet" class="btn btn-primary">連接錢包</button>
-            <span id="walletAddress" class="wallet-address"></span>
-            <button id="switchAccount" class="btn btn-warning btn-sm" style="display:none; padding: 2px 8px; font-size: 12px;">切換</button>
-        </div>
-    </nav>
-
-    <!-- 主要內容 -->
-    <main class="container">
-        <!-- 上架商品區塊 -->
-        <section class="section">
-            <h2>📦 上架新商品</h2>
-            <form id="listProductForm" class="form-card">
-                <div class="form-group">
-                    <label for="productName">商品名稱</label>
-                    <input type="text" id="productName" placeholder="例：iPhone 15 Pro" required>
-                </div>
-                <div class="form-group">
-                    <label for="productDescription">商品描述</label>
-                    <textarea id="productDescription" placeholder="描述商品狀況、使用時間等..." required></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="productPrice">價格 (ETH)</label>
-                    <input type="number" id="productPrice" step="0.001" min="0.001" placeholder="0.1" required>
-                </div>
-                <button type="submit" class="btn btn-success">上架商品</button>
-            </form>
-        </section>
-
-        <!-- 商品列表區塊 -->
-        <section class="section">
-            <h2>🏪 所有商品</h2>
-            <div id="productList" class="product-grid">
-                <!-- 商品卡片會由 JavaScript 動態產生 -->
-                <div class="loading">載入中...</div>
-            </div>
-        </section>
-    </main>
-
-    <!-- 頁尾 -->
-    <footer class="footer">
-        <p>NYCU Blockchain Course Final Project | Chain ID: 11330023</p>
-    </footer>
-
-    <!-- 通知訊息 -->
-    <div id="notification" class="notification hidden">
-        <span id="notificationMessage"></span>
-        <button onclick="hideNotification()">&times;</button>
+  <!-- 導覽列 -->
+  <nav class="navbar">
+    <div class="nav-brand">
+      <h1>🛒 二手市場</h1>
     </div>
+    <div class="nav-links">
+      <a href="index.html">商品列表</a>
+      <a href="my-orders.html">我的訂單</a>
+    </div>
+    <div class="nav-wallet">
+      <button id="connectWallet" class="btn btn-primary">連接錢包</button>
+      <span id="walletAddress" class="wallet-address"></span>
+      <button id="switchAccount" class="btn btn-warning btn-sm"
+        style="display:none; padding: 2px 8px; font-size: 12px;">
+        切換
+      </button>
+    </div>
+  </nav>
 
-    <!-- JavaScript -->
-    <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
-    <script src="js/abi.js"></script>
-    <script src="js/app.js"></script>
+  <!-- 主要內容 -->
+  <main class="container">
+    <section class="section">
+      <h2>📄 商品詳情</h2>
+      <!-- ✅ 這個 id 超關鍵：app.js 會靠它判斷這頁是「詳情頁」 -->
+      <div id="productDetail">
+        <div class="loading">載入中...</div>
+      </div>
+    </section>
+
+    <!-- ✅ 你有 escrow 功能才需要，沒有也不會壞 -->
+    <section id="escrowSection" class="section hidden">
+      <h2>🔒 托管資訊</h2>
+      <div id="escrowDetail"></div>
+    </section>
+  </main>
+
+  <!-- 頁尾 -->
+  <footer class="footer">
+    <p>NYCU Blockchain Course Final Project | Chain ID: 11330023</p>
+  </footer>
+
+  <!-- 通知訊息 -->
+  <div id="notification" class="notification hidden">
+    <span id="notificationMessage"></span>
+    <button onclick="hideNotification()">&times;</button>
+  </div>
+
+  <!-- JavaScript -->
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+  <script src="js/abi.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>

@@ -113,6 +113,12 @@ python -m http.server 8080
 ### 如何獲得基礎的錢進行測試？
 - 複製錢包的address
     - ![alt text](image.png)
+
+- unlock
+    ```bash
+    personal.unlockAccount(eth.accounts[0], "nycu", 0)
+    ```
+
 - 把錢轉到自己的錢包下。
     ```bash
     eth.sendTransaction({from: eth.accounts[0], to: "0x60d8454EfB9a0E796Da51A52329C3B88EBF37aB9", value: web3.toWei(10, "ether")})
@@ -225,3 +231,10 @@ python -m http.server 8080
 MIT License
 
 ---
+
+remix註冊
+unlock account
+貼address到abi.js
+開始交易！記得要mine才能紀錄交易
+
+![alt text](image-1.png)
