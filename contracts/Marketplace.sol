@@ -4,6 +4,13 @@ pragma solidity ^0.8.0;
 import "./Escrow.sol";
 
 contract Marketplace {
+
+    address public owner; // 用來領取手續費
+
+    // 設定合約擁有者
+    constructor() {
+        owner = msg.sender;
+    }
     
     // 商品狀態
     enum ProductStatus { Available, Pending, Sold, Cancelled }
@@ -26,6 +33,9 @@ contract Marketplace {
     mapping(address => uint256[]) public sellerProducts;
     mapping(address => uint256[]) public buyerOrders;
     
+    // 允許合約接收手續費
+    receive() external payable {}
+
     // 事件
     event ProductListed(uint256 indexed productId, address indexed seller, string name, uint256 price);
     event ProductPurchased(uint256 indexed productId, address indexed buyer, address escrowContract);
@@ -173,5 +183,15 @@ contract Marketplace {
     // 查詢買家的所有訂單
     function getBuyerOrders(address _buyer) external view returns (uint256[] memory) {
         return buyerOrders[_buyer];
+    }
+
+    // 提款功能 (只有 owner 能領出手續費)
+    function withdrawFee() external {
+        require(msg.sender == owner, "Only owner can withdraw");
+        uint256 balance = address(this).balance;
+        require(balance > 0, "No fees to withdraw");
+        
+        (bool success, ) = payable(owner).call{value: balance}("");
+        require(success, "Withdraw failed");
     }
 }
