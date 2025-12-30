@@ -99,32 +99,38 @@ python -m http.server 8080
 
 ## 📖 使用說明
 ### MetaMask錢包安裝
-- 先去Extension下載
-![alt text](images/image.png)
-- 完成後點開並且設定密碼
-- 點選左上角新增網路
-    - ![alt text](images/image-2.png)
-    - ![alt text](images/image-3.png)
-- 填寫RPC URL
-    - ![alt text](images/image-1.png)
-- 完成後儲存
-    - ![alt text](images/image-4.png)
+1. 先去 Extension 下載 Metamask，完成後點開並且設定密碼
+![alt text](images/image-1.png)
+2. 點選左上角新增網路
+![alt text](images/image-2.png)
+3. 填寫RPC URL (http://127.0.0.1:8545)
+![alt text](images/image-3.png)
+4. 完成後儲存
+![alt text](images/image-4.png)
 
 ### 如何獲得基礎的錢進行測試？
 - 複製錢包的address
-    - ![alt text](image.png)
+![alt text](images/image-5.png)
+- 解鎖老師上課提供的帳戶60秒，以進行轉帳。
+    ```bash
+    personal.unlockAccount(eth.accounts[0], "nycu", 60)
+    ```
 - 把錢轉到自己的錢包下。
     ```bash
-    eth.sendTransaction({from: eth.accounts[0], to: "0x60d8454EfB9a0E796Da51A52329C3B88EBF37aB9", value: web3.toWei(10, "ether")})
+    eth.sendTransaction({from: eth.accounts[0], to: "0xe16eF50a9DF4A1b0BaCF7BA795a9B3AC9AB4Cd50", value: web3.toWei(10, "ether")})
     ```
-- 記得在後台啟動miner.start()去把這筆紀錄挖出來。（建議挖完馬上關，不然後面難度會太高！）
-![alt text](images/image-5.png)
-- 最後點選右上角的連接錢包就會透過你的extension問你是否要連接錢包！
+- 若想要快速匯款進自己的帳戶可以在後台啟動 miner.start() 去把這筆紀錄挖出來。（建議挖完馬上關，不然後面難度會太高！）
+![alt text](images/image-6.png)
+- 最後，回到 Metamask 查看帳戶餘額是否成功轉入。
+![alt text](images/image-7.png)
+- 也可以使用以下指令查詢餘額是否成功轉入。
+    ```bash
+    eth.getBalance("0xe16eF50a9DF4A1b0BaCF7BA795a9B3AC9AB4Cd50")
+    ```
 
 ### 額外新增買家進行測試。
-- ![alt text](images/image-6.png)
-- ![alt text](images/image-7.png)
-- ![alt text](images/image-8.png)
+![alt text](images/image-8.png)
+
 ### 賣家流程
 1. 連接 MetaMask 錢包
 2. 在首頁填寫商品資訊（名稱、描述、價格）
