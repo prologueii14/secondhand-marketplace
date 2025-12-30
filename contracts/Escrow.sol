@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+// 定義介面：讓 Escrow 知道 Marketplace 有這些功能可以呼叫
+interface IMarketplace {
+    function markAsSold(uint256 _productId) external;
+    function markAsAvailable(uint256 _productId) external; // 用於退款時重置狀態
+}
+
 contract Escrow {
     
     // 托管狀態
@@ -12,15 +18,17 @@ contract Escrow {
     uint256 public productId;
     State public state;
     uint256 public createdAt;
-    address public marketplace; // 【零件：記錄授權秘書的身分證】
-    receive() external payable {}
-    // 事件
+    address public marketplace; // 記錄 Marketplace 合約地址
+    
+    receive() external payable {} // 接收以太幣的 fallback 函式
+
+    // Events
     event Funded(address indexed buyer, uint256 amount);
     event Confirmed(address indexed buyer, address indexed seller, uint256 amount);
     event Refunded(address indexed buyer, uint256 amount);
     event DisputeRaised(address indexed raiser);
     
-    // 修飾器
+    // Modifiers
     modifier onlyBuyer() {
         require(msg.sender == buyer, "Only buyer can call this");
         _;
@@ -45,7 +53,7 @@ contract Escrow {
     ) payable {
         buyer = _buyer;
         seller = _seller;
-        marketplace = msg.sender;
+        marketplace = msg.sender; // 這裡記錄了是誰創造了這個 Escrow (即 Marketplace)
         productId = _productId;
         amount = _amount;
         state = State.Created;
@@ -63,8 +71,13 @@ contract Escrow {
     // 買家確認收貨 → 資金轉給賣家
     function confirmReceived() external onlyBuyer inState(State.Funded) {
         state = State.Confirmed;
+        
+        // 1. 先轉帳
         (bool success, ) = payable(seller).call{value: amount}("");
         require(success, "Transfer to seller failed");
+        
+        // 2. 通知 Marketplace 將商品標記為「已售出」
+        IMarketplace(marketplace).markAsSold(productId);
         
         emit Confirmed(buyer, seller, amount);
     }
@@ -73,8 +86,12 @@ contract Escrow {
     function refund() external onlySeller inState(State.Funded) {
         state = State.Refunded;
         
+        // 1. 先退款
         (bool success, ) = payable(buyer).call{value: amount}("");
         require(success, "Refund to buyer failed");
+        
+        // 2. 通知 Marketplace 將商品重置為「可購買」(Available) 這樣賣家才能再次賣這個商品，否則它會永遠卡在 Pending
+        IMarketplace(marketplace).markAsAvailable(productId);
         
         emit Refunded(buyer, amount);
     }

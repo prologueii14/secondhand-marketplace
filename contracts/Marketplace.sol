@@ -120,6 +120,19 @@ contract Marketplace {
         
         emit ProductSold(_productId);
     }
+
+    // 用於退款後重置商品狀態
+    function markAsAvailable(uint256 _productId) external {
+        Product storage product = products[_productId];
+        require(product.id != 0, "Product does not exist");
+        // 安全檢查：只有該商品對應的 Escrow 合約可以呼叫
+        require(product.escrowContract == msg.sender, "Only escrow contract can reset status");
+        
+        // 將狀態改回 Available，讓其他人可以再次購買
+        product.status = ProductStatus.Available;
+        // 清除舊的 Escrow 地址，因為下次購買會產生新的合約
+        product.escrowContract = address(0); 
+    }
     
     // 查詢單一商品
     function getProduct(uint256 _productId) external view returns (Product memory) {
