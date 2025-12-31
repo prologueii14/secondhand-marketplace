@@ -98,9 +98,40 @@ python -m http.server 8080
 ---
 
 ## 📖 使用說明
+### MetaMask錢包安裝
+1. 先去 Extension 下載 Metamask，完成後點開並且設定密碼
+![alt text](images/image-1.png)
+2. 點選左上角新增網路
+![alt text](images/image-2.png)
+3. 填寫RPC URL (http://127.0.0.1:8545)
+![alt text](images/image-3.png)
+4. 完成後儲存
+![alt text](images/image-4.png)
+
+### 如何獲得基礎的錢進行測試？
+- 複製錢包的address
+![alt text](images/image-5.png)
+- 解鎖老師上課提供的帳戶60秒，以進行轉帳。
+    ```bash
+    personal.unlockAccount(eth.accounts[0], "nycu", 60)
+    ```
+- 把錢轉到自己的錢包下。
+    ```bash
+    eth.sendTransaction({from: eth.accounts[0], to: "0xe16eF50a9DF4A1b0BaCF7BA795a9B3AC9AB4Cd50", value: web3.toWei(10, "ether")})
+    ```
+- 若想要快速匯款進自己的帳戶可以在後台啟動 miner.start() 去把這筆紀錄挖出來。（建議挖完馬上關，不然後面難度會太高！）
+![alt text](images/image-6.png)
+- 最後，回到 Metamask 查看帳戶餘額是否成功轉入。
+![alt text](images/image-7.png)
+- 也可以使用以下指令查詢餘額是否成功轉入。
+    ```bash
+    eth.getBalance("0xe16eF50a9DF4A1b0BaCF7BA795a9B3AC9AB4Cd50")
+    ```
+
+### 額外新增買家進行測試。
+![alt text](images/image-8.png)
 
 ### 賣家流程
-
 1. 連接 MetaMask 錢包
 2. 在首頁填寫商品資訊（名稱、描述、價格）
 3. 點擊「上架商品」
@@ -179,6 +210,32 @@ python -m http.server 8080
 - 請勿從共用帳戶轉出大量 ETH（超過 100 ETH）
 - 測試前請確認 MetaMask 已連接到正確的網路
 - 價格單位為 ETH，合約內部使用 Wei
+
+---
+
+## 🧪 實際操作流程紀錄（Demo）
+
+以下為實際在私有鏈環境中完成交易流程的操作紀錄，作為本專案前後端與智能合約整合的驗證說明。
+
+### 操作流程摘要
+
+1. 於 **Remix IDE** 部署 `Marketplace` 與 `Escrow` 合約  
+2. 於私有鏈節點解鎖帳戶（unlock account），並提供測試用 ETH  
+3. 將部署完成後的 **Marketplace 合約地址** 填入 `frontend/js/abi.js`  
+4. 啟動私有鏈節點並開始挖礦（`miner.start()`），以確保交易可被打包  
+5. 使用前端介面透過 MetaMask 進行以下操作：
+   - 賣家上架商品
+   - 買家購買商品（資金進入 Escrow）
+   - 買家確認收貨，資金釋放給賣家
+
+> ⚠️ 注意：在私有鏈環境下，每筆交易皆需挖礦才能完成，  
+> 測試完成後建議立即停止挖礦以避免難度快速上升。
+
+### 前端操作畫面
+
+下圖為實際操作時的前端介面截圖：
+
+![Frontend Demo Screenshot](images/image-11.png)
 
 ---
 

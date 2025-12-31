@@ -51,7 +51,19 @@ async function initWeb3() {
         return false;
     }
 }
-
+// 零件 B：新增主動切換函式 (綁定到按鈕)
+async function requestSwitchAccount() {
+    try {
+        // 只有這裡會強制彈窗
+        await window.ethereum.request({
+            method: 'wallet_requestPermissions',
+            params: [{ eth_accounts: {} }]
+        });
+        // 彈窗完後會觸發下面的 handleAccountsChanged 零件
+    } catch (error) {
+        console.log("用戶取消切換");
+    }
+}
 // 處理帳號切換
 function handleAccountsChanged(accounts) {
     if (accounts.length === 0) {
@@ -68,10 +80,13 @@ function handleAccountsChanged(accounts) {
 function updateWalletUI() {
     const connectBtn = document.getElementById('connectWallet');
     const addressSpan = document.getElementById('walletAddress');
-    
+    // 【新增零件】：抓取切換按鈕
+    const switchBtn = document.getElementById('switchAccount');
     if (currentAccount) {
         connectBtn.style.display = 'none';
         addressSpan.textContent = shortenAddress(currentAccount);
+        // 【新增】：顯示切換按鈕
+        if (switchBtn) switchBtn.style.display = 'inline-block';
     } else {
         connectBtn.style.display = 'block';
         addressSpan.textContent = '';
@@ -115,6 +130,7 @@ async function listProduct(name, description, price) {
 }
 
 // 載入所有可購買商品
+// 修改後的載入商品列表功能
 async function loadProducts() {
     const productList = document.getElementById('productList');
     if (!productList) return;
@@ -134,19 +150,34 @@ async function loadProducts() {
             return;
         }
         
-        productList.innerHTML = products.map(product => `
-            <div class="product-card">
-                <div class="product-card-body">
-                    <h3>${escapeHtml(product.name)}</h3>
-                    <p class="description">${escapeHtml(product.description)}</p>
-                    <p class="price">${web3.utils.fromWei(product.price, 'ether')} ETH</p>
-                    <p class="seller">賣家: ${shortenAddress(product.seller)}</p>
-                    <span class="status status-available">可購買</span>
-                    <br><br>
-                    <a href="product.html?id=${product.id}" class="btn btn-primary">查看詳情</a>
+        productList.innerHTML = products.map(product => {
+            // 【關鍵零件】：在列表頁也加入身分檢查
+            // isSeller 是「身分鎖」，canBuy 是「啟動開關」
+            const isSeller = currentAccount && 
+                product.seller.toLowerCase() === currentAccount.toLowerCase();
+            const canBuy = product.status === '0' && !isSeller;
+
+            return `
+                <div class="product-card">
+                    <div class="product-card-body">
+                        <h3>${escapeHtml(product.name)}</h3>
+                        <p class="description">${escapeHtml(product.description)}</p>
+                        <p class="price">${web3.utils.fromWei(product.price, 'ether')} ETH</p>
+                        <p class="seller">賣家: ${shortenAddress(product.seller)}</p>
+                        <span class="status status-available">可購買</span>
+                        <br><br>
+                        <div class="actions">
+                            <a href="product.html?id=${product.id}" class="btn btn-primary">查看詳情</a>
+                            
+                            ${canBuy 
+                                ? `<button onclick="purchaseProduct(${product.id}, '${product.price}')" 
+                                     class="btn btn-success">直接購買</button>` 
+                                : ''}
+                        </div>
+                    </div>
                 </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
         
     } catch (error) {
         console.error('載入商品失敗:', error);
@@ -580,45 +611,83 @@ function hideNotification() {
 // ========== 事件監聽 ==========
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // 連接錢包按鈕
+    // 1) 切換錢包按鈕
+    const switchBtn = document.getElementById('switchAccount');
+    if (switchBtn) {
+        switchBtn.addEventListener('click', requestSwitchAccount);
+    }
+
+    // 2) 連接錢包按鈕
     const connectBtn = document.getElementById('connectWallet');
     if (connectBtn) {
         connectBtn.addEventListener('click', async () => {
-            await initWeb3();
-            if (document.getElementById('productList')) {
-                await loadProducts();
-            }
+            const ok = await initWeb3();
+            if (!ok) return;
+
+            // 點連接後，依照頁面決定要載入什麼
+            await bootPage();
         });
     }
-    
-    // 上架表單
+
+    // 3) 上架表單（只有 index.html 才有）
     const listForm = document.getElementById('listProductForm');
     if (listForm) {
         listForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const name = document.getElementById('productName').value;
             const description = document.getElementById('productDescription').value;
             const price = document.getElementById('productPrice').value;
-            
+
             await listProduct(name, description, price);
-            
-            // 清空表單
             listForm.reset();
         });
     }
-    
-    // 自動連接（如果之前已授權）
+
+    // 4) 如果瀏覽器有錢包，且使用者已經授權過帳號（不彈窗）
     if (typeof window.ethereum !== 'undefined') {
-        const accounts = await window.ethereum.request({ 
-            method: 'eth_accounts' 
-        });
-        
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+
         if (accounts.length > 0) {
-            await initWeb3();
-            if (document.getElementById('productList')) {
-                await loadProducts();
-            }
+            const ok = await initWeb3();
+            if (!ok) return;
+
+            // 自動啟動對應頁面功能
+            await bootPage();
         }
     }
 });
+
+// 依照頁面上有哪些 DOM 元素，決定啟動哪個功能
+async function bootPage() {
+    // 首頁（商品列表）
+    const productList = document.getElementById('productList');
+
+    // 商品詳情頁
+    const productDetail = document.getElementById('productDetail');
+
+    // 我的訂單頁（任一存在就算）
+    const buyerOrders = document.getElementById('buyerOrders');
+    const sellerProducts = document.getElementById('sellerProducts');
+
+    if (productList) {
+        await loadProducts();
+        return;
+    }
+
+    if (productDetail) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const productId = urlParams.get('id');
+        if (productId) {
+            await loadProductDetail(productId);
+        }
+        return;
+    }
+
+    if (buyerOrders || sellerProducts) {
+        await loadMyOrders();
+        return;
+    }
+
+    // 其他頁面：不做事
+}

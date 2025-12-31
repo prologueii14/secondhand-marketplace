@@ -6,7 +6,7 @@ const CHAIN_ID = 11330023;
 
 // ========== Marketplace 合約 ==========
 // 部署後將地址填入下方
-const MARKETPLACE_ADDRESS = "";
+const MARKETPLACE_ADDRESS = "0x...([Jasper] please update, cuz I have updated the contracts)...";
 
 const MARKETPLACE_ABI = [
 	{
