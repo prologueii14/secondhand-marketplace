@@ -39,7 +39,6 @@ secondhand-marketplace/
 │       └── app.js             # 前端主程式
 │
 └── test/
-    ├── Escrow.test.js         # 托管合約測試
     └── Marketplace.test.js    # 市場合約測試
 ```
 
