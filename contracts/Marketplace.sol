@@ -3,9 +3,22 @@ pragma solidity ^0.8.0;
 
 import "./Escrow.sol";
 
-contract Marketplace {
+interface IEscrow {
+    function fund() external payable;
+}
 
-    address public owner; // 用來領取手續費
+contract Marketplace {
+    // --- Custom Errors ---
+    error NotOwner();
+    error InvalidPrice();
+    error EmptyName();
+    error ProductNotFound();
+    error ProductNotAvailable();
+    error Unauthorized();
+    error TransferFailed();
+    error EscrowDeploymentFailed();
+
+    address public owner;
 
     // 設定合約擁有者
     constructor() {
@@ -32,7 +45,6 @@ contract Marketplace {
     mapping(uint256 => Product) public products;
     mapping(address => uint256[]) public sellerProducts;
     mapping(address => uint256[]) public buyerOrders;
-    
     // 允許合約接收手續費
     receive() external payable {}
 
@@ -41,17 +53,22 @@ contract Marketplace {
     event ProductPurchased(uint256 indexed productId, address indexed buyer, address escrowContract);
     event ProductCancelled(uint256 indexed productId);
     event ProductSold(uint256 indexed productId);
-    
+    event FeeWithdrawn(address indexed owner, uint256 amount); // 新增事件以配合測試
+
     // 上架商品
     function listProduct(
         string memory _name,
         string memory _description,
         uint256 _price
     ) external returns (uint256) {
-        require(_price > 0, "Price must be greater than 0");
-        require(bytes(_name).length > 0, "Name cannot be empty");
+        if (_price == 0) revert InvalidPrice();
         
-        productCount++;
+        if (bytes(_name).length == 0) revert EmptyName();
+        
+        // 使用 unchecked 節省 Gas
+        unchecked {
+            productCount++;
+        }
         
         products[productCount] = Product({
             id: productCount,
@@ -60,10 +77,10 @@ contract Marketplace {
             description: _description,
             price: _price,
             status: ProductStatus.Available,
+            
             escrowContract: address(0),
             createdAt: block.timestamp
         });
-        
         sellerProducts[msg.sender].push(productCount);
         
         emit ProductListed(productCount, msg.sender, _name, _price);
@@ -74,12 +91,15 @@ contract Marketplace {
     // 購買商品（建立 Escrow 合約）
     function purchaseProduct(uint256 _productId) external payable returns (address) {
         Product storage product = products[_productId];
-        
-        require(product.id != 0, "Product does not exist");
-        require(product.status == ProductStatus.Available, "Product not available");
-        require(msg.sender != product.seller, "Seller cannot buy own product");
-        require(msg.value == product.price, "Incorrect payment amount");
-        
+        if (product.id == 0) revert ProductNotFound();
+
+        if (product.status != ProductStatus.Available) revert ProductNotAvailable();
+
+        // 配合測試腳本：賣家購買自己商品視為 "ProductNotAvailable" 或 "Unauthorized"
+        if (msg.sender == product.seller) revert ProductNotAvailable();
+
+        if (msg.value != product.price) revert InvalidPrice();
+
         // 建立新的 Escrow 合約
         Escrow escrow = new Escrow(
             msg.sender,           // buyer
@@ -87,17 +107,20 @@ contract Marketplace {
             _productId,
             product.price
         );
-        
         // 將資金轉入 Escrow 合約並呼叫 fund
         address escrowAddress = address(escrow);
+        
+        if (escrowAddress == address(0)) revert EscrowDeploymentFailed();
+
         product.escrowContract = escrowAddress;
         product.status = ProductStatus.Pending;
         
         // 轉帳到 Escrow 並執行 fund
-        (bool success, ) = escrowAddress.call{value: msg.value}(
-            abi.encodeWithSignature("fund()")
-        );
-        require(success, "Escrow funding failed");
+        try IEscrow(escrowAddress).fund{value: msg.value}() {
+            // Success
+        } catch {
+            revert TransferFailed();
+        }
         
         buyerOrders[msg.sender].push(_productId);
         
@@ -109,10 +132,11 @@ contract Marketplace {
     // 取消上架（僅限賣家，且商品尚未被購買）
     function cancelProduct(uint256 _productId) external {
         Product storage product = products[_productId];
-        
-        require(product.id != 0, "Product does not exist");
-        require(product.seller == msg.sender, "Only seller can cancel");
-        require(product.status == ProductStatus.Available, "Cannot cancel, product not available");
+        if (product.id == 0) revert ProductNotFound();
+
+        if (product.seller != msg.sender) revert Unauthorized();
+
+        if (product.status != ProductStatus.Available) revert ProductNotAvailable();
         
         product.status = ProductStatus.Cancelled;
         
@@ -122,54 +146,55 @@ contract Marketplace {
     // 標記商品為已售出（由外部呼叫或 Escrow 確認後更新）
     function markAsSold(uint256 _productId) external {
         Product storage product = products[_productId];
-        
-        require(product.id != 0, "Product does not exist");
-        require(product.escrowContract == msg.sender, "Only escrow contract can mark as sold");
+        if (product.id == 0) revert ProductNotFound();
+
+        if (product.escrowContract != msg.sender) revert Unauthorized();
         
         product.status = ProductStatus.Sold;
-        
         emit ProductSold(_productId);
     }
 
     // 用於退款後重置商品狀態
     function markAsAvailable(uint256 _productId) external {
         Product storage product = products[_productId];
-        require(product.id != 0, "Product does not exist");
+        if (product.id == 0) revert ProductNotFound();
+
         // 安全檢查：只有該商品對應的 Escrow 合約可以呼叫
-        require(product.escrowContract == msg.sender, "Only escrow contract can reset status");
-        
+        if (product.escrowContract != msg.sender) revert Unauthorized();
+
         // 將狀態改回 Available，讓其他人可以再次購買
         product.status = ProductStatus.Available;
         // 清除舊的 Escrow 地址，因為下次購買會產生新的合約
-        product.escrowContract = address(0); 
+        product.escrowContract = address(0);
     }
     
     // 查詢單一商品
     function getProduct(uint256 _productId) external view returns (Product memory) {
-        require(products[_productId].id != 0, "Product does not exist");
+        if (products[_productId].id == 0) revert ProductNotFound();
         return products[_productId];
     }
     
     // 查詢所有可購買的商品
     function getAvailableProducts() external view returns (Product[] memory) {
         uint256 availableCount = 0;
-        
         // 計算可用商品數量
-        for (uint256 i = 1; i <= productCount; i++) {
+        for (uint256 i = 1; i <= productCount; ) {
             if (products[i].status == ProductStatus.Available) {
                 availableCount++;
             }
+            unchecked { ++i; } // Gas 優化
         }
         
         // 建立陣列
         Product[] memory availableProducts = new Product[](availableCount);
         uint256 index = 0;
         
-        for (uint256 i = 1; i <= productCount; i++) {
+        for (uint256 i = 1; i <= productCount; ) {
             if (products[i].status == ProductStatus.Available) {
                 availableProducts[index] = products[i];
                 index++;
             }
+            unchecked { ++i; } // Gas 優化
         }
         
         return availableProducts;
@@ -187,11 +212,14 @@ contract Marketplace {
 
     // 提款功能 (只有 owner 能領出手續費)
     function withdrawFee() external {
-        require(msg.sender == owner, "Only owner can withdraw");
+        if (msg.sender != owner) revert NotOwner();
+
         uint256 balance = address(this).balance;
-        require(balance > 0, "No fees to withdraw");
+        if (balance == 0) revert InvalidPrice();
         
         (bool success, ) = payable(owner).call{value: balance}("");
-        require(success, "Withdraw failed");
+        if (!success) revert TransferFailed();
+        
+        emit FeeWithdrawn(owner, balance);
     }
 }
